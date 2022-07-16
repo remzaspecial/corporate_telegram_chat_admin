@@ -2,7 +2,10 @@ import qs from 'qs';
 import rp from 'request-promise';
 import dotenv from 'dotenv'
 import _ from 'lodash'
+import * as graph from '@microsoft/microsoft-graph-client';
 import { logger } from './logger';
+import { IActiveDirectoryUser } from './interfaces';
+import { AuthProviderCallback } from '@microsoft/microsoft-graph-client';
 import 'isomorphic-fetch'
 dotenv.config();
 
@@ -44,6 +47,34 @@ export async function getAccessToken (): Promise<string> {
     try {
         const accessToken = await getClientCredentials(appID, graphScope, clientSecret, tokenEndPoint);
         return accessToken.access_token;
+    } catch (e) {
+        throw e;
+    }
+}
+
+export async function getUsersDataFromAd (): Promise<IActiveDirectoryUser[]> {
+    const betweenResult: any = [];
+    let result: IActiveDirectoryUser[] = [];
+    const accessToken = await getAccessToken();
+    const clientAd: graph.Client = graph.Client.init({
+        // Use the provided access token to authenticate
+        // requests
+        authProvider: async (done: AuthProviderCallback) => {
+            done(null, accessToken);
+        }
+    });
+    try {
+        let link = '/users?$select=id,mail,givenName,surname,mobilePhone,businessPhones,department';
+        while (true) {
+            const response = await clientAd.api(link)
+                .get();
+            link = response['@odata.nextLink'];
+            betweenResult.push(response.value);
+            if (!link) {
+                break;
+            }
+        }
+        return _.flatten(betweenResult) as IActiveDirectoryUser[];
     } catch (e) {
         throw e;
     }
