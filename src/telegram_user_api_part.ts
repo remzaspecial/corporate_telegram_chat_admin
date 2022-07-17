@@ -7,25 +7,29 @@ import { generateRandomBytes, readBigIntFromBuffer } from 'telegram/Helpers';
 const stringSession: StringSession = new StringSession(String(process.env.SESSION!));
 const apiId: number = Number(process.env.API_ID);
 const apiHash: string = String(process.env.API_HASH);
+//channelId is telegram ID to your corporate channel
 const channelId: string = String(process.env.CHANNEL_ID!);
 
 const client = new TelegramClient(stringSession, apiId, apiHash, {});
 
 export async function saveContactGetId (user: IActiveDirectoryUser): Promise<Api.long> {
     try {
-        const betweenResult: Api.contacts.ImportedContacts = await client.invoke(
+        let userNumber = ''
+        if(!user.mobilePhone) userNumber = user.businessPhones[0];
+        else userNumber = user.mobilePhone;
+        const userEntity: Api.contacts.ImportedContacts = await client.invoke(
             new Api.contacts.ImportContacts({
                 contacts: [
                     new Api.InputPhoneContact({
                         clientId: readBigIntFromBuffer(generateRandomBytes(8)),
-                        phone: user.businessPhones[0], // You may change it to mobilePhone
+                        phone: userNumber, 
                         firstName: user.givenName,
                         lastName: user.surname
                     })
                 ]
             })
         );
-        return betweenResult.users[0].id;
+        return userEntity.users[0].id;
     } catch (e) {
         throw e
     }
